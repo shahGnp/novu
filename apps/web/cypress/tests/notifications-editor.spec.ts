@@ -120,11 +120,13 @@ describe('Notifications Creator', function () {
       cy.getByTestId('trigger-snippet-btn').click();
       cy.location('pathname').should('equal', '/templates');
     });
+
     it('should create multiline in-app notification, send it and receive', function () {
       waitLoadTemplatePage(() => {
         cy.visit('/templates/create');
       });
       cy.waitForNetworkIdle(1000);
+
       cy.getByTestId('title').type('Test Notification Title');
       cy.getByTestId('description').type('This is a test description for a test title');
       cy.get('body').click();
@@ -164,6 +166,7 @@ describe('Notifications Creator', function () {
           expect($el[0].innerText).to.contain('Please check it.');
         });
     });
+
     it('should create email notification', function () {
       waitLoadTemplatePage(() => {
         cy.visit('/templates/create');
@@ -213,6 +216,8 @@ describe('Notifications Creator', function () {
       waitLoadTemplatePage(() => {
         cy.visit('/templates/create');
       });
+      cy.waitForNetworkIdle(500);
+
       cy.getByTestId('title').type('Test Notification Title');
       cy.getByTestId('description').type('This is a test description for a test title');
       cy.get('body').click();
@@ -266,14 +271,16 @@ describe('Notifications Creator', function () {
       cy.get('.mantine-Select-dropdown .mantine-Select-item').contains('Minutes').click();
 
       cy.getByTestId('submit-btn').click();
-
       cy.getByTestId('success-trigger-modal').should('be.visible');
       cy.getByTestId('trigger-snippet-btn').click();
+
       cy.intercept('GET', '/v1/notification-templates?page=0&limit=10').as('notification-templates');
       cy.visit('/templates');
       cy.wait('@notification-templates');
+
       cy.get('tbody').contains('Test Notification Title').click();
 
+      cy.wait(1000);
       clickWorkflow();
 
       cy.clickWorkflowNode(`node-digestSelector`);
@@ -313,7 +320,6 @@ describe('Notifications Creator', function () {
     it('should edit notification', function () {
       const template = this.session.templates[0];
       cy.visit('/templates/edit/' + template._id);
-      cy.waitForNetworkIdle(500);
 
       cy.getByTestId('title').should('have.value', template.name);
 
@@ -327,8 +333,8 @@ describe('Notifications Creator', function () {
 
       cy.getByTestId('settingsButton').click();
       cy.getByTestId('title').clear().type('This is the new notification title');
-      clickWorkflow();
 
+      clickWorkflow();
       editChannel('inApp', true);
 
       cy.getByTestId('use-feeds-checkbox').click();
@@ -339,6 +345,8 @@ describe('Notifications Creator', function () {
 
       cy.waitForNetworkIdle(500);
       cy.visit('/templates');
+      cy.waitForNetworkIdle(500);
+
       cy.getByTestId('template-edit-link');
       cy.getByTestId('notifications-template').get('tbody tr td').contains('This is the new', {
         matchCase: false,
@@ -352,7 +360,6 @@ describe('Notifications Creator', function () {
       cy.getByTestId('feed-button-1-checked');
       cy.getByTestId('create-feed-input').type('test4');
       cy.getByTestId('add-feed-button').click();
-      cy.wait(1000);
       cy.getByTestId('feed-button-2-checked');
     });
 
@@ -554,7 +561,7 @@ describe('Notifications Creator', function () {
       cy.get('#codeEditor').contains('Hello world code {{name}} <div>Test</div>');
     });
 
-    it('should redirect to dev env for edit template', async function () {
+    it('should redirect to dev env for edit template', function () {
       cy.intercept('POST', '*/notification-templates').as('createTemplate');
       waitLoadTemplatePage(() => {
         cy.visit('/templates/create');
@@ -568,10 +575,10 @@ describe('Notifications Creator', function () {
         cy.intercept('GET', '/v1/changes?promoted=false').as('unpromoted-changes');
         cy.visit('/changes');
         cy.wait('@unpromoted-changes');
+
+        // TODO: Race condition around here, makes test flaky.
         cy.getByTestId('promote-btn').eq(0).click();
-
         cy.getByTestId('environment-switch').find(`input[value="Production"]`).click();
-
         cy.getByTestId('notifications-template').find('tbody tr').first().click();
 
         cy.location('pathname').should('not.equal', `/templates/edit/${res.response?.body.data._id}`);
